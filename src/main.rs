@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::{fmt::Write, path::PathBuf};
 
 use clang::{Clang, Entity, EntityKind, EvaluationResult, Index, Type, TypeKind};
 
@@ -13,18 +13,15 @@ struct Wranglings {
     extension_name: Option<String>,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().collect();
-    let input_file = std::path::PathBuf::from(&args[1]).canonicalize()?;
-
+fn wrangling(clang: &Clang, path: PathBuf) -> Wranglings {
     let mut w = Wranglings::default();
 
-    let clang = Clang::new()?;
     let index = Index::new(&clang, false, false);
     let tu = index
-        .parser(&args[1])
+        .parser(&path)
         .detailed_preprocessing_record(true)
-        .parse()?;
+        .parse()
+        .unwrap();
     let toplevels = tu.get_entity().get_children();
     for tl in toplevels {
         let Some(location) = tl.get_location() else {
@@ -33,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let Some(file) = location.get_file_location().file else {
             continue;
         };
-        if file.get_path().canonicalize().unwrap() != input_file {
+        if file.get_path().canonicalize().unwrap() != path {
             continue;
         }
         match tl.get_kind() {
@@ -51,33 +48,63 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
     }
+    w
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<String> = std::env::args().collect();
+    let input_files = args[1..]
+        .iter()
+        .map(|path| {
+            let path = PathBuf::from(path);
+            path.canonicalize().unwrap()
+        })
+        .collect::<Vec<_>>();
+
+    let clang = Clang::new()?;
+
+    let mut wranglings = Vec::<Wranglings>::new();
+    for path in input_files {
+        wranglings.push(wrangling(&clang, path))
+    }
 
     println!("--- Paste this before the </commands> closer ---");
-    println!("<!-- XXX: lol -->");
-    print!("{}", w.commands_xml);
     println!();
+    for w in &wranglings {
+        println!("<!-- XXX: lol -->");
+        print!("{}", w.commands_xml);
+        println!();
+    }
+
     println!("--- Paste this before the </types> closer ---");
-    println!("<!-- XXX: lol -->");
-    print!("{}", w.types_xml);
     println!();
+    for w in &wranglings {
+        println!("<!-- XXX: lol -->");
+        print!("{}", w.types_xml);
+        println!();
+    }
 
     println!("--- Paste this before the </extensions> closer ---");
-    println!("<!-- XXX: lol -->");
-    println!(
-        r#"<extension name="{}" number="{}" type="instance" supported="openxr">"#,
-        w.extension_name.unwrap(),
-        w.extension_id.unwrap()
-    );
-    println!(r#"<require>"#);
-    println!(r#"{}"#, w.enums_xml);
-    for cmd in w.commands {
-        println!(r#"<command name="{cmd}"/>"#);
+    println!();
+    for w in &wranglings {
+        println!("<!-- XXX: lol -->");
+        println!(
+            r#"<extension name="{}" number="{}" type="instance" supported="openxr">"#,
+            w.extension_name.as_ref().unwrap(),
+            w.extension_id.unwrap()
+        );
+        println!(r#"<require>"#);
+        println!(r#"{}"#, w.enums_xml.trim_end());
+        for cmd in &w.commands {
+            println!(r#"<command name="{cmd}"/>"#);
+        }
+        for ty in &w.types {
+            println!(r#"<type name="{ty}"/>"#);
+        }
+        println!(r#"</require>"#);
+        println!(r#"</extension>"#);
+        println!();
     }
-    for ty in w.types {
-        println!(r#"<type name="{ty}"/>"#);
-    }
-    println!(r#"</require>"#);
-    println!(r#"</extension>"#);
     Ok(())
 }
 
@@ -103,18 +130,21 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
             writeln!(
                 w.commands_xml,
                 r#"<command successcodes="XR_SUCCESS" errorcodes="XR_ERROR_FUNCTION_UNSUPPORTED">"#
-            ).unwrap();
+            )
+            .unwrap();
             writeln!(
                 w.commands_xml,
                 r#"<proto><type>{}</type><name>{name}</name></proto>"#,
                 ret_ty.get_display_name()
-            ).unwrap();
+            )
+            .unwrap();
             for (ty, name) in arg_tys.into_iter().zip(&arg_names) {
                 writeln!(
                     w.commands_xml,
                     r#"<param>{}<name>{name}</name></param>"#,
                     format_type(&ty)
-                ).unwrap();
+                )
+                .unwrap();
             }
             writeln!(w.commands_xml, r#"</command>"#).unwrap();
         }
@@ -133,7 +163,8 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
                     w.types_xml,
                     r#"<member>{} <name>{name}</name></member>"#,
                     format_type(&ty)
-                ).unwrap();
+                )
+                .unwrap();
             }
             writeln!(w.types_xml, r#"</type>"#).unwrap();
         }
@@ -185,7 +216,8 @@ fn handle_vardecl(w: &mut Wranglings, tl: Entity<'_>) {
         r#"<enum offset="{offset}" extends="{}" name="{}"/>"#,
         ty.get_display_name().unwrap(),
         tl.get_name().unwrap(),
-    ).unwrap();
+    )
+    .unwrap();
 }
 
 fn handle_macro(w: &mut Wranglings, tl: Entity<'_>) {
