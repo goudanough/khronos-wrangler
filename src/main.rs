@@ -65,7 +65,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut wranglings = Vec::<Wranglings>::new();
     for path in input_files {
-        wranglings.push(wrangling(&clang, path))
+        let w = wrangling(&clang, path.clone());
+        if w.extension_id.is_some() {
+            wranglings.push(w);
+        } else {
+            eprintln!("Failed to derive a version number for:");
+            eprintln!(
+                "\textension = {}",
+                w.extension_name.unwrap_or("Unknown".to_string())
+            );
+            eprintln!("\tpath = {path:?}");
+            eprintln!();
+        }
     }
 
     println!("--- Paste this before the </commands> closer ---");
