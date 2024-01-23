@@ -110,10 +110,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
     let ty = e.get_typedef_underlying_type().unwrap();
-    match ty.get_kind() {
-        TypeKind::Pointer
-            if ty.get_pointee_type().as_ref().map(Type::get_kind)
-                == Some(TypeKind::FunctionPrototype) =>
+    if let TypeKind::Pointer = ty.get_kind() {
+        if let Some(TypeKind::FunctionPrototype) =
+            ty.get_pointee_type().as_ref().map(Type::get_kind)
         {
             let func = ty.get_pointee_type().unwrap();
             let name = &e.get_display_name().unwrap()[4..];
@@ -148,29 +147,26 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
             }
             writeln!(w.commands_xml, r#"</command>"#).unwrap();
         }
-        TypeKind::Elaborated => {
-            let name = ty.get_display_name();
-            let name = name.trim_start_matches("struct ");
-            let fields = ty.get_elaborated_type().unwrap().get_fields().unwrap();
+    } else if let EntityKind::StructDecl = e.get_kind() {
+        let name = ty.get_display_name();
+        let name = name.trim_start_matches("struct ");
+        let fields = ty.get_elaborated_type().unwrap().get_fields().unwrap();
 
-            w.types.push(name.to_owned());
+        w.types.push(name.to_owned());
 
-            writeln!(w.types_xml, r#"<type category="struct" name="{name}">"#).unwrap();
-            for field in fields {
-                let name = field.get_display_name().unwrap();
-                let ty = field.get_type().unwrap();
-                writeln!(
-                    w.types_xml,
-                    r#"<member>{} <name>{name}</name></member>"#,
-                    format_type(&ty)
-                )
-                .unwrap();
-            }
-            writeln!(w.types_xml, r#"</type>"#).unwrap();
+        writeln!(w.types_xml, r#"<type category="struct" name="{name}">"#).unwrap();
+        for field in fields {
+            let name = field.get_display_name().unwrap();
+            let ty = field.get_type().unwrap();
+            writeln!(
+                w.types_xml,
+                r#"<member>{} <name>{name}</name></member>"#,
+                format_type(&ty)
+            )
+            .unwrap();
         }
-        _ => {}
+        writeln!(w.types_xml, r#"</type>"#).unwrap();
     }
-    println!();
 }
 
 fn format_type(ty: &Type<'_>) -> String {
