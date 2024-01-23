@@ -208,15 +208,19 @@ fn handle_vardecl(w: &mut Wranglings, tl: Entity<'_>) {
     let EvaluationResult::SignedInteger(mut x) = initialiser.evaluate().unwrap() else {
         return;
     };
-    x -= 1_000_000_000;
-    let ext_id = x / 1000;
-    match w.extension_id {
-        Some(v) if v == ext_id => {}
-        Some(_) => panic!("uh oh"),
-        None => w.extension_id = Some(ext_id),
+
+    let mut offset = x;
+    if let Some("XrStructureType") = ty.get_display_name().as_deref() {
+        x -= 1_000_000_000;
+        let ext_id = x / 1000;
+        match w.extension_id {
+            Some(v) if v == ext_id => {}
+            Some(_) => panic!("uh oh"),
+            None => w.extension_id = Some(ext_id),
+        }
+        offset = x % 1000;
     }
 
-    let offset = x % 1000;
     writeln!(
         w.enums_xml,
         r#"<enum offset="{offset}" extends="{}" name="{}"/>"#,
