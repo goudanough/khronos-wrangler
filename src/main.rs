@@ -147,25 +147,27 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
             }
             writeln!(w.commands_xml, r#"</command>"#).unwrap();
         }
-    } else if let EntityKind::StructDecl = e.get_kind() {
-        let name = ty.get_display_name();
-        let name = name.trim_start_matches("struct ");
-        let fields = ty.get_elaborated_type().unwrap().get_fields().unwrap();
-
-        w.types.push(name.to_owned());
-
-        writeln!(w.types_xml, r#"<type category="struct" name="{name}">"#).unwrap();
-        for field in fields {
-            let name = field.get_display_name().unwrap();
-            let ty = field.get_type().unwrap();
-            writeln!(
-                w.types_xml,
-                r#"<member>{} <name>{name}</name></member>"#,
-                format_type(&ty)
-            )
-            .unwrap();
+    } else if let EntityKind::TypedefDecl = e.get_kind() {
+        if let Some(EntityKind::StructDecl) = e.get_children().first().map(Entity::get_kind) {
+            let name = ty.get_display_name();
+            let name = name.trim_start_matches("struct ");
+            let fields = ty.get_elaborated_type().unwrap().get_fields().unwrap();
+    
+            w.types.push(name.to_owned());
+    
+            writeln!(w.types_xml, r#"<type category="struct" name="{name}">"#).unwrap();
+            for field in fields {
+                let name = field.get_display_name().unwrap();
+                let ty = field.get_type().unwrap();
+                writeln!(
+                    w.types_xml,
+                    r#"<member>{} <name>{name}</name></member>"#,
+                    format_type(&ty)
+                )
+                .unwrap();
+            }
+            writeln!(w.types_xml, r#"</type>"#).unwrap();
         }
-        writeln!(w.types_xml, r#"</type>"#).unwrap();
     }
 }
 
@@ -192,9 +194,8 @@ fn handle_vardecl(w: &mut Wranglings, tl: Entity<'_>) {
     let [ty, .., initialiser] = &*children else {
         panic!("nuh uh")
     };
-    let [.., initialiser] = &*initialiser.get_children() else {
-        panic!("no")
-    };
+    let children = initialiser.get_children();
+    let initialiser = children.last().unwrap_or(initialiser);
     let EvaluationResult::SignedInteger(mut x) = initialiser.evaluate().unwrap() else {
         return;
     };
