@@ -103,20 +103,20 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
             writeln!(
                 w.commands_xml,
                 r#"<command successcodes="XR_SUCCESS" errorcodes="XR_ERROR_FUNCTION_UNSUPPORTED">"#
-            );
+            ).unwrap();
             writeln!(
                 w.commands_xml,
                 r#"<proto><type>{}</type><name>{name}</name></proto>"#,
                 ret_ty.get_display_name()
-            );
+            ).unwrap();
             for (ty, name) in arg_tys.into_iter().zip(&arg_names) {
                 writeln!(
                     w.commands_xml,
                     r#"<param>{}<name>{name}</name></param>"#,
                     format_type(&ty)
-                );
+                ).unwrap();
             }
-            writeln!(w.commands_xml, r#"</command>"#);
+            writeln!(w.commands_xml, r#"</command>"#).unwrap();
         }
         TypeKind::Elaborated => {
             let name = ty.get_display_name();
@@ -125,7 +125,7 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
 
             w.types.push(name.to_owned());
 
-            writeln!(w.types_xml, r#"<type category="struct" name="{name}">"#);
+            writeln!(w.types_xml, r#"<type category="struct" name="{name}">"#).unwrap();
             for field in fields {
                 let name = field.get_display_name().unwrap();
                 let ty = field.get_type().unwrap();
@@ -133,9 +133,9 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
                     w.types_xml,
                     r#"<member>{} <name>{name}</name></member>"#,
                     format_type(&ty)
-                );
+                ).unwrap();
             }
-            writeln!(w.types_xml, r#"</type>"#);
+            writeln!(w.types_xml, r#"</type>"#).unwrap();
         }
         _ => {}
     }
@@ -185,7 +185,7 @@ fn handle_vardecl(w: &mut Wranglings, tl: Entity<'_>) {
         r#"<enum offset="{offset}" extends="{}" name="{}"/>"#,
         ty.get_display_name().unwrap(),
         tl.get_name().unwrap(),
-    );
+    ).unwrap();
 }
 
 fn handle_macro(w: &mut Wranglings, tl: Entity<'_>) {
@@ -198,7 +198,7 @@ fn handle_macro(w: &mut Wranglings, tl: Entity<'_>) {
         .unwrap()
         .get_spelling();
     if name.ends_with("_SPEC_VERSION") {
-        writeln!(w.enums_xml, r#"<enum value="{val}" name="{name}"/>"#);
+        writeln!(w.enums_xml, r#"<enum value="{val}" name="{name}"/>"#).unwrap();
     } else if name.ends_with("_EXTENSION_NAME") {
         w.extension_name = Some(val.trim_matches('"').to_owned());
     }
