@@ -179,9 +179,17 @@ fn handle_typedef(w: &mut Wranglings, e: Entity<'_>) {
             for field in fields {
                 let name = field.get_display_name().unwrap();
                 let ty = field.get_type().unwrap();
+                let mut arr = String::from("");
+                if let [.., arr_size] = &*field.get_children() {
+                    if arr_size.get_kind() == EntityKind::IntegerLiteral {
+                        if let EvaluationResult::SignedInteger(x) = arr_size.evaluate().unwrap() {
+                            arr = format!("[{x}]");
+                        }
+                    }
+                }
                 writeln!(
                     w.types_xml,
-                    r#"<member>{} <name>{name}</name></member>"#,
+                    r#"<member>{} <name>{name}</name>{arr}</member>"#,
                     format_type(&ty)
                 )
                 .unwrap();
@@ -201,6 +209,11 @@ fn format_type(ty: &Type<'_>) -> String {
         };
         let inner = format_type(&pointee);
         format!("{qual}{inner}*")
+    } else if ty.get_kind() == TypeKind::ConstantArray {
+        format!(
+            "<type>{}</type>",
+            ty.get_element_type().unwrap().get_display_name().trim_start_matches("const ")
+        )
     } else {
         format!(
             "<type>{}</type>",
