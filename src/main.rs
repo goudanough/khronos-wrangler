@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let Some(file) = location.get_file_location().file else {
             continue;
         };
-        if file.get_path() != input_file {
+        if file.get_path().canonicalize().unwrap() != input_file {
             continue;
         }
         match tl.get_kind() {
