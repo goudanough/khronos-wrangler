@@ -234,7 +234,7 @@ fn handle_vardecl(w: &mut Wranglings, tl: Entity<'_>) {
     };
 
     let mut offset = x;
-    if let Some("XrStructureType") = ty.get_display_name().as_deref() {
+    if x > 1_000_000_000 {
         x -= 1_000_000_000;
         let ext_id = x / 1000;
         match w.extension_id {
