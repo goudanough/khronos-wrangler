@@ -4,3 +4,5 @@ Annoyingly, these APIs don't seem to have been ratified into the Khronos Registr
 
 OpenXR definitions are stored in XML, which can be processed into C headers - or in our case - rust bindings, through the openxrs crates.
 Fortunately the Meta Quest OpenXR SDK *does* come with C headers, so with a little magic we can reverse these C headers into their original XML (give or take a few details).
+
+## MAKE SURE YOU HAVE OPENXR HEADERS INSTALLED BEFORE YOU USE THIS
