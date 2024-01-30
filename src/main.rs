@@ -280,7 +280,7 @@ fn handle_vardecl(w: &mut Wranglings, tl: Entity<'_>) {
     let mut offset = x;
     if x > 1_000_000_000 {
         x -= 1_000_000_000;
-        let ext_id = x / 1000;
+        let ext_id = x / 1000 + 1;
         match w.extension_id {
             Some(v) if v == ext_id => {}
             Some(_) => panic!("uh oh"),
